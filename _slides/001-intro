@@ -1,0 +1,17 @@
+#!/bin/sh
+
+printf '\033[2;34H\033[44;1m %s \033[0m\n' Introduction
+printf '\n\n
+                              PShT is the tool for
+
+                      \033[1mPresentations in Shell and Terminal\033[0m.
+
+
+
+                              It allows to combine
+
+                                  * slides and
+                                  * live demos
+
+                                in the terminal.
+'

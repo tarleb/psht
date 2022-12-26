@@ -1,0 +1,19 @@
+#!/usr/bin/tail -n+2
+
+                                 [44;1m How it works [0m
+
+
+
+               PShT is a shell library that provides a simple and
+
+              standardized way to step through slides. Any program
+
+                or script can serve as a slide, as long as it's
+
+                         in the `_slides` subdirectory.
+
+
+
+          The _slides folder in the source repository can serve as an
+
+                                    example.

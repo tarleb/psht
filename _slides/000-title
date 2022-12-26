@@ -1,0 +1,6 @@
+#!/bin/sh
+printf '\033[3mAlbert Krewinkel\033[0m\n'
+printf '\033[9;1H' # skip lines
+printf '\033[35;1m'
+figlet -t -c -f big PShT
+printf '\033[0m'
