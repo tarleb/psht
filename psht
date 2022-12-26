@@ -1,0 +1,129 @@
+#!/bin/sh
+action=$1
+
+# PSHT_SLIDES_DIR=$(pwd)/_slides
+
+# Prints the message to stderr with an OK marker.
+psht_ok ()
+{
+    printf '[[32m OK  [0m ] %s\n' "$1" >&2
+}
+
+# Prints the message to stderr with a WARN marker.
+psht_warn ()
+{
+    printf '[[33mWARN[0m ] %s\n' "$1" >&2
+}
+
+# Prints the message to stderr with a FATAL marker and returns with
+# error code 1.
+psht_fatal ()
+{
+    printf '[[31mFATAL[0m] %s\n' "$1" >&2
+    return 1
+}
+
+# Initialize a psht presentation
+psht_init ()
+{
+    export PSHT_CURRENT
+    export PSHT_SLIDES_DIR
+
+    PSHT_SLIDES_DIR=$(pwd)/_slides
+    psht_rewind
+}
+
+# Go to the first slide
+psht_rewind ()
+{
+    PSHT_CURRENT=$(\
+        find "$PSHT_SLIDES_DIR" -exec basename '{}' \; |\
+            sort |\
+            head -n 1)
+}
+
+psht_unset_env ()
+{
+    unset PSHT_CURRENT
+    unset PSHT_SLIDES_DIR
+}
+
+psht_current ()
+{
+
+    printf '\033[1;1H\033[0J'   # clear screen
+    find "$PSHT_SLIDES_DIR" -name "$PSHT_CURRENT*" -exec '{}' \; \
+      && printf '\033[999;1H'   # go to last line
+}
+
+psht_list_slides ()
+{
+    find "${PSHT_SLIDES_DIR}" -type f -exec basename '{}' \; | sort
+}
+
+# Move forward by one slide, without showing any slides.
+psht_forward ()
+{
+    local del=0,/^${PSHT_CURRENT}.*/d
+    local slide="$(\
+        find "$PSHT_SLIDES_DIR" -type f -exec basename '{}' \; | \
+        sort | \
+        sed -e "$del" | \
+        head -n 1\
+    )"
+    PSHT_CURRENT=${slide}
+}
+
+# Move backward by one slide, without showing any slides.
+psht_backward ()
+{
+    local del=/^${PSHT_CURRENT}.*/,\$d
+    local slide="$(psht_list_slides |\
+        sed -e "$del" | \
+        tail -n 1\
+    )"
+    PSHT_CURRENT=${slide}
+}
+
+psht ()
+{
+    local cmd=$1
+    shift
+    case "$cmd" in
+        (i|in|ini|init)
+            psht_init
+            ;;
+        (sta|star|start)
+            psht_init
+            psht_current
+            ;;
+        (sto|stop)
+            psht_unset_env
+            ;;
+        (c|cu|cur|curr|curre|curren|current)
+            psht_current
+            ;;
+        (n|ne|nex|next)
+            psht_forward
+            psht_current
+            ;;
+        (p|pr|pre|prev|previ|previo|previou|previous)
+            psht_backward
+            psht_current
+            ;;
+        (l|li|lis|list)
+            psht_list_slides
+            ;;
+        ('')
+            psht_warn "Action required."
+            ;;
+        (*)
+            psht_fatal "Unknown or ambiguous action."
+            ;;
+    esac
+}
+
+if [ -z "$PSHT_CURRENT" ]; then
+    psht_init
+    psht_ok "psht is setup and ready."
+fi
