@@ -56,6 +56,20 @@ psht_current ()
       && printf '\033[999;1H'   # go to last line
 }
 
+# Got to the next slide and render it.
+psht_next ()
+{
+    psht_forward
+    psht_current
+}
+
+# Got to the previous slide and render it.
+psht_previous ()
+{
+    psht_backward
+    psht_current
+}
+
 psht_list_slides ()
 {
     find "${PSHT_SLIDES_DIR}" -type f -exec basename '{}' \; | sort
