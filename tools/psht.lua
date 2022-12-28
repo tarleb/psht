@@ -49,6 +49,7 @@ local unicode_superscript = {
 
 local font_effects = setmetatable(
   {
+    -- leading zeros make things symmetric and simplify centering.
     bold       = {'01', '22'},
     faint      = {'02', '22'},
     italic     = {'03', '23'},
@@ -94,12 +95,46 @@ Extensions = {
   color = true,
 }
 
-Writer = pandoc.scaffolding.Writer
 
-local inlines = Writer.Inlines
-local blocks = Writer.Blocks
+local ANSI = pandoc.scaffolding.Writer
+local inlines = function (inlns, opts)
+  local opts = opts or PANDOC_WRITER_OPTIONS
+  local docs, cur = List{}, nil
+  for i, inline in ipairs(inlns) do
+    cur = ANSI.Inline[inline.t](inline, opts)
+    if type(cur) == 'table' then
+      docs:extend(cur)
+    elseif type(cur) == 'string' then
+      docs:insert(cur)
+    elseif type(cur) == 'userdata' then -- Doc object
+      docs:insert(cur)
+    else
+      local msg = "Unexpected result '%s' while rendering '%s'"
+      error(msg:format(tostring(cur), inline.t))
+    end
+  end
+  return concat(docs, sep)
+end
 
-Writer.Pandoc = function (doc, opts)
+local blocks = function (blks, sep, opts)
+  local sep = sep or blankline
+  local opts = opts or PANDOC_WRITER_OPTIONS
+  local docs, cur = List{}, nil
+  for i, block in ipairs(blks) do
+    cur = ANSI.Block[block.t](block, opts)
+    if type(cur) == 'table' then
+      docs:extend(cur)
+    elseif type(cur) == 'userdata' then -- Doc object
+      docs:insert(cur)
+    else
+      local msg = "Unexpected result '%s' while rendering '%s'"
+      error(msg:format(tostring(cur), block.t))
+    end
+  end
+  return concat(docs, sep)
+end
+
+ANSI.Pandoc = function (doc, opts)
   local d = blocks(doc.blocks, blankline)
   local notes = footnotes:map(function (note, i)
       local prefix = opts.extensions:includes 'unicode'
@@ -107,32 +142,32 @@ Writer.Pandoc = function (doc, opts)
         or concat{format("[^%d]:", i), space}
       return hang(blocks(footnotes[i], blankline), 4, prefix)
   end)
-  return {d, blankline, concat(notes, blankline)}
+  return concat{d, blankline, concat(notes, blankline)}
 end
 
-Writer.Block.Para = function(el)
+ANSI.Block.Para = function(el)
   return inlines(el.content)
 end
 
-Writer.Block.Plain = function(el)
+ANSI.Block.Plain = function(el)
   return inlines(el.content)
 end
 
-Writer.Block.BlockQuote = function(el)
+ANSI.Block.BlockQuote = function(el)
   return prefixed(nest(blocks(el.content, blankline), 1), ">")
 end
 
-Writer.Block.Header = function(h, opts)
+ANSI.Block.Header = function(h, opts)
   local texts
   if h.level <= 1 then
     return cblock(
       font({'bold', 'underline'}, inlines(h.content)),
-      opts.columns
+      opts.columns + 16 -- correct for escape sequences
     )
   elseif h.level <= 2 then
     return cblock(
       font({'bold'}, inlines(h.content)),
-      opts.columns
+      opts.columns + 10 -- chars in escape sequences
     )
   elseif h.level <= 3 then
     return font({'bold', 'underline'}, inlines(h.content))
@@ -143,27 +178,27 @@ Writer.Block.Header = function(h, opts)
   end
 end
 
-Writer.Block.Div = function(el)
+ANSI.Block.Div = function(el)
   return {cr, blocks(el.content, blankline), blankline}
 end
 
-Writer.Block.RawBlock = function(el)
+ANSI.Block.RawBlock = function(el)
   return empty
 end
 
-Writer.Block.Null = function(el)
+ANSI.Block.Null = function(el)
   return empty
 end
 
-Writer.Block.LineBlock = function(el)
+ANSI.Block.LineBlock = function(el)
   return concat(el.content:map(inlines), cr)
 end
 
-Writer.Block.Table = function(el)
+ANSI.Block.Table = function(el)
   return 'table omitted'
 end
 
-Writer.Block.DefinitionList = function(el)
+ANSI.Block.DefinitionList = function(el)
   local function render_def (def)
     return concat{blankline, blocks(def), blankline}
   end
@@ -175,7 +210,7 @@ Writer.Block.DefinitionList = function(el)
   return concat(el.content:map(render_item), blankline)
 end
 
-Writer.Block.BulletList = function(ul, opts)
+ANSI.Block.BulletList = function(ul, opts)
   local bullet = opts.extensions:includes 'unicode' and '• ' or '- '
   bullet = font('red', bullet)
   local function render_item (item)
@@ -185,7 +220,7 @@ Writer.Block.BulletList = function(ul, opts)
   return cr .. concat(ul.content:map(render_item), sep)
 end
 
-Writer.Block.OrderedList = function(ol)
+ANSI.Block.OrderedList = function(ol)
   local result = List{cr}
   local num = ol.start
   local maxnum = num + #ol.content
@@ -216,58 +251,60 @@ Writer.Block.OrderedList = function(ol)
   return concat(result, sep)
 end
 
-Writer.Block.CodeBlock = function(cb)
+ANSI.Block.CodeBlock = function(cb)
   return nest(concat { cr, cb.text, cr }, 4)
 end
 
-Writer.Block.HorizontalRule = function(_, opts)
+ANSI.Block.HorizontalRule = function(_, opts)
   local dinkus = opts.extensions:includes 'unicode'
     and '⁂'
     or '* * * * *'
   return cblock(dinkus, opts.columns)
 end
 
-Writer.Inline.Str = function(el)
+ANSI.Inline.Str = function(el)
   return el.text
 end
 
-Writer.Inline.Space = space
+ANSI.Inline.Space = function ()
+  return space
+end
 
-Writer.Inline.SoftBreak = function(el, opts)
+ANSI.Inline.SoftBreak = function(el, opts)
   return opts.wrap_text == "wrap-preserve" and cr or space
 end
 
-Writer.Inline.LineBreak = cr
+ANSI.Inline.LineBreak = cr
 
-Writer.Inline.RawInline = function()
+ANSI.Inline.RawInline = function()
   return empty
 end
 
-Writer.Inline.Code = function(code)
+ANSI.Inline.Code = function(code)
   return font('bold', code.text)
 end
 
-Writer.Inline.Emph = function(em, opts)
+ANSI.Inline.Emph = function(em, opts)
   local color = opts.extensions:includes 'color' and 'green' or nil
   return opts.extensions:includes 'italic'
     and font({'italic', color}, inlines(em.content))
     or font({'underline', color}, inlines(em.content))
 end
 
-Writer.Inline.Strong = function(strong, opts)
+ANSI.Inline.Strong = function(strong, opts)
   local color = opts.extensions:includes 'color' and 'red' or nil
   return font({'bold', color}, inlines(strong.content))
 end
 
-Writer.Inline.Strikeout = function(el)
+ANSI.Inline.Strikeout = function(el)
   return font('strikeout', inlines(el.content))
 end
 
-Writer.Inline.Subscript = function(el)
+ANSI.Inline.Subscript = function(el)
   return { '~', inlines(el.content), '~'}
 end
 
-Writer.Inline.Superscript = function(el, opts)
+ANSI.Inline.Superscript = function(el, opts)
   local all_unicode = true
   local function tosuperscript (str)
     return str.text:gsub('.', function (c)
@@ -284,31 +321,31 @@ Writer.Inline.Superscript = function(el, opts)
   end
 end
 
-Writer.Inline.SmallCaps = function(el)
+ANSI.Inline.SmallCaps = function(el)
   local function to_upper (str)
     return pandoc.text.upper(str.text)
   end
   return inlines(el.content:walk {Str = to_upper})
 end
 
-Writer.Inline.Underline = function(u)
+ANSI.Inline.Underline = function(u)
   return font('underline', inlines(u.content))
 end
 
-Writer.Inline.Cite = function(el)
+ANSI.Inline.Cite = function(el)
   return inlines(el.content)
 end
 
-Writer.Inline.Math = function(el)
+ANSI.Inline.Math = function(el)
   local marker = el.mathtype == 'DisplayMath' and '$$' or '$'
   return { marker, Inline.Code(el) }
 end
 
-Writer.Inline.Span = function(span)
+ANSI.Inline.Span = function(span)
   return inlines(span.content)
 end
 
-Writer.Inline.Link = function(link)
+ANSI.Inline.Link = function(link)
   if link.target:match '^%#' then
     -- drop internal links
     return inlines(link.content)
@@ -320,20 +357,26 @@ Writer.Inline.Link = function(link)
   end
 end
 
-Writer.Inline.Image = function(el)
+ANSI.Inline.Image = function(el)
   return inlines(el.caption)
 end
 
-Writer.Inline.Quoted = function(q)
+ANSI.Inline.Quoted = function(q)
   return q.quotetype == pandoc.DoubleQuote
     and inlines(q.content):double_quotes()
     or  inlines(q.content):quotes()
 end
 
-Writer.Inline.Note = function(note, opts)
+ANSI.Inline.Note = function(note, opts)
   footnotes:insert(note.content)
   local num = #footnotes
   return opts.extensions:includes 'unicode'
     and tostring(num):gsub('[%d]', unicode_superscript)
     or format("[^%d]", num)
 end
+
+Writer = function (doc, opts)
+  PANDOC_WRITER_OPTIONS = opts
+  return ANSI.Pandoc(doc, opts):render(opts.columns)
+end
+
