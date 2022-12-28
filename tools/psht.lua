@@ -377,6 +377,26 @@ end
 
 Writer = function (doc, opts)
   PANDOC_WRITER_OPTIONS = opts
-  return ANSI.Pandoc(doc, opts):render(opts.columns)
+  opts.slide_level = opts.slide_level or pandoc.structure.slide_level(doc)
+  doc.blocks = pandoc.structure.make_sections(doc, opts)
+  local split_opts = {
+    path_template = '_slides/%n-%i.sh',
+    chunk_level = opts.slide_level,
+  }
+  local chunked = pandoc.structure.split_into_chunks(doc, split_opts)
+  local files = List{}
+  for i, chunk in ipairs(chunked.chunks) do
+    local fh = io.open(chunk.path, 'w')
+    fh:write('#!/usr/bin/tail -n+2\n')
+    fh:write(
+      ANSI.Pandoc(pandoc.Pandoc(chunk.contents), opts)
+      :render(opts.columns)
+    )
+    fh:close()
+    os.execute(('chmod +x "%s"'):format(chunk.path))
+    files:insert(chunk.path)
+  end
+
+  return 'The following slides were created:\n' .. table.concat(files, '\n')
 end
 
