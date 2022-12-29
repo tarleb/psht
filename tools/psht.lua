@@ -14,7 +14,7 @@ local to_roman = pandoc.utils.to_roman_numeral
 local stringify = pandoc.utils.stringify
 local List = pandoc.List
 
-local footnotes = List{}
+local footnotes
 
 local format_number = {
   Decimal      = function (n) return format("%d", n) end,
@@ -135,6 +135,7 @@ local blocks = function (blks, sep, opts)
 end
 
 ANSI.Pandoc = function (doc, opts)
+  footnotes = List{}
   local d = blocks(doc.blocks, blankline)
   local notes = footnotes:map(function (note, i)
       local prefix = opts.extensions:includes 'unicode'
