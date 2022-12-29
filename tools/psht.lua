@@ -66,6 +66,14 @@ local font_effects = setmetatable(
     magenta    = {'35', '39'},
     cyan       = {'36', '39'},
     white      = {'37', '39'},
+    blackbg    = {'40', '49'},
+    redbg      = {'41', '49'},
+    greenbg    = {'42', '49'},
+    yellowbg   = {'43', '49'},
+    bluebg     = {'44', '49'},
+    magentabg  = {'45', '49'},
+    cyanbg     = {'46', '49'},
+    whitebg    = {'47', '49'},
   },
   {
     __index = function (_, key)
@@ -96,7 +104,10 @@ Extensions = {
 }
 
 
-local ANSI = pandoc.scaffolding.Writer
+local ANSI = {
+  Block = {},
+  Inline = {},
+}
 local inlines = function (inlns, opts)
   local opts = opts or PANDOC_WRITER_OPTIONS
   local docs, cur = List{}, nil
