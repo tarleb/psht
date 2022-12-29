@@ -387,6 +387,35 @@ ANSI.Inline.Note = function(note, opts)
     or format("[^%d]", num)
 end
 
+local function term_lines()
+  return tonumber(pandoc.pipe('tput', {'lines'}, ''))
+end
+
+local write_title_slide = function (meta)
+  local lines = meta.lines or term_lines() or 24
+  local cols = meta.cols or 80
+  local author = inlines(meta.author)
+  local titlestr = stringify(meta.title or '')
+  local title = ''
+  if titlestr ~= '' then
+    title = pandoc.pipe(
+      'figlet',
+      {'-c', ('-w%d'):format(cols), '-f', 'big'},
+      titlestr
+    )
+  end
+  title = font('magenta', title):render()
+  -- center vertically
+  title = string.rep('\n', (lines - 8) // 2) .. title
+  local filename = ('_slides/000-%s'):format(titlestr)
+  local fh = io.open(filename, 'w')
+  fh:write('#!/usr/bin/tail -n+2\n')
+  fh:write(font('italic', author):render())
+  fh:write(title)
+  fh:close()
+  return filename
+end
+
 Writer = function (doc, opts)
   PANDOC_WRITER_OPTIONS = opts
   opts.slide_level = opts.slide_level or pandoc.structure.slide_level(doc)
@@ -405,10 +434,18 @@ Writer = function (doc, opts)
       :render(opts.columns)
     )
     fh:close()
-    os.execute(('chmod +x "%s"'):format(chunk.path))
     files:insert(chunk.path)
   end
 
-  return 'The following slides were created:\n' .. table.concat(files, '\n')
+  local title_slide_name = write_title_slide(doc.meta)
+  files:insert(1, title_slide_name)
+
+  -- make slides executable
+  files:map(function (fp)
+      os.execute(('chmod +x "%s"'):format(fp))
+  end)
+
+  return 'The following slides were created:\n' ..
+    table.concat(files, '\n')
 end
 
