@@ -8,11 +8,27 @@ local format = string.format
 local layout = pandoc.layout
 local empty, cr, concat, blankline, space =
   layout.empty, layout.cr, layout.concat, layout.blankline, layout.space
-local cblock, rblock, prefixed, nest, hang =
-  layout.cblock, layout.rblock, layout.prefixed, layout.nest, layout.hang
+local hang, nest, prefixed, real_length =
+  layout.hang, layout.nest, layout.prefixed, layout.real_length
 local to_roman = pandoc.utils.to_roman_numeral
 local stringify = pandoc.utils.stringify
 local List = pandoc.List
+
+--- Like pandoc.layout.cblock, but adjusted to work with escape sequences.
+-- Doesn't play nicely with other blocks though.
+local center = function (doc, width)
+  local block = doc:render(width)
+  local lines = List{}
+  for line in block:gmatch('[^\n]*') do
+    local escape_chars = 0
+    for seq in line:gmatch('\027%[[%d;]*%a') do
+      escape_chars = escape_chars + #seq
+    end
+    local left_spaces = (width - real_length(line) + escape_chars) // 2
+    lines:insert(string.rep(' ', left_spaces) .. line)
+  end
+  return table.concat(lines, '\n')
+end
 
 local footnotes
 
@@ -135,6 +151,8 @@ local blocks = function (blks, sep, opts)
     cur = ANSI.Block[block.t](block, opts)
     if type(cur) == 'table' then
       docs:extend(cur)
+    elseif type(cur) == 'string' then
+      docs:insert(cur)
     elseif type(cur) == 'userdata' then -- Doc object
       docs:insert(cur)
     else
@@ -172,14 +190,14 @@ end
 ANSI.Block.Header = function(h, opts)
   local texts
   if h.level <= 1 then
-    return cblock(
+    return center(
       font({'bold', 'underline'}, inlines(h.content)),
-      opts.columns + 16 -- correct for escape sequences
+      opts.columns
     )
   elseif h.level <= 2 then
-    return cblock(
+    return center(
       font({'bold'}, inlines(h.content)),
-      opts.columns + 10 -- chars in escape sequences
+      opts.columns
     )
   elseif h.level <= 3 then
     return font({'bold', 'underline'}, inlines(h.content))
