@@ -208,8 +208,21 @@ ANSI.Block.Header = function(h, opts)
   end
 end
 
-ANSI.Block.Div = function(el)
-  return {cr, blocks(el.content, blankline), blankline}
+ANSI.Block.Div = function(div, opts)
+  if div.classes:includes 'note' then
+    -- omit notes
+    return empty
+  elseif div.classes:includes 'center' or div.classes:includes 'centered' then
+    local content = blocks(div.content, blankline)
+    local width = div.attributes.width or content:offset()
+    local centered = nest(
+      content:render(),
+      (opts.columns - width) // 2
+    )
+    return {cr, centered, blankline}
+  else
+    return {cr, blocks(div.content, blankline), blankline}
+  end
 end
 
 ANSI.Block.RawBlock = function(el)
