@@ -112,6 +112,55 @@ local function font (effects, b)
   }
 end
 
+--- Get the number of terminal lines.
+local function term_lines()
+  return tonumber(pandoc.pipe('tput', {'lines'}, ''))
+end
+
+--- Get the number of terminal lines.
+local function term_cols()
+  return tonumber(pandoc.pipe('tput', {'cols'}, ''))
+end
+
+--- Display with figlet
+local function figlet(contents, cols, args)
+  cols = cols or term_cols()
+  args = args or {}
+  return pandoc.pipe(
+    'figlet',
+    List{'-c', ('-w%d'):format(cols)} .. args,
+    stringify(contents)
+  )
+end
+
+local function ensure_doc(d)
+  return pandoc.utils.type(d) == 'Doc' and d or layout.literal(d)
+end
+
+local function ensure_string(s)
+  return type(content) == 'string' and s or tostring(s)
+end
+
+local function hcenter(content, cols)
+  content = ensure_string(content)
+  cols = cols or term_cols()
+  return nest(
+    content,
+    (cols - layout.offset(content)) // 2
+  )
+end
+
+--- Center vertically
+local function vcenter(content, lines)
+  lines = lines or term_lines()
+  content = ensure_string(content)
+  local height = 1
+  for _ in content:gmatch '\n' do
+    height = height + 1
+  end
+  return ' ' .. string.rep('\n', (lines - height) // 2) .. content
+end
+
 --- Supported writer extensions
 Extensions = {
   italic = false,
@@ -189,7 +238,10 @@ end
 
 ANSI.Block.Header = function(h, opts)
   local texts
-  if h.level <= 1 then
+  if h.level < opts.slide_level then
+    local centered = hcenter(inlines(h.content), opts.columns)
+    return font({'bold'}, vcenter(centered))
+  elseif h.level <= 1 then
     return center(
       font({'bold', 'underline'}, inlines(h.content)),
       opts.columns
@@ -418,26 +470,16 @@ ANSI.Inline.Note = function(note, opts)
     or format("[^%d]", num)
 end
 
-local function term_lines()
-  return tonumber(pandoc.pipe('tput', {'lines'}, ''))
-end
-
 local write_title_slide = function (meta)
   local lines = meta.lines or term_lines() or 24
   local cols = meta.cols or 80
   local author = inlines(meta.author)
-  local titlestr = stringify(meta.title or '')
-  local title = ''
+  local title = meta.title or ''
+  local titlestr = stringify(title)
   if titlestr ~= '' then
-    title = pandoc.pipe(
-      'figlet',
-      {'-c', ('-w%d'):format(cols), '-f', 'big'},
-      titlestr
-    )
+    title = figlet(titlestr, cols, {'-f', 'big'})
   end
-  title = font('magenta', title):render()
-  -- center vertically
-  title = string.rep('\n', (lines - 8) // 2) .. title
+  title = vcenter(font('magenta', title):render(), lines)
   local filename = ('_slides/000-%s'):format(titlestr)
   local fh = io.open(filename, 'w')
   fh:write('#!/usr/bin/tail -n+2\n')
