@@ -437,6 +437,9 @@ ANSI.Inline.Math = function(el)
 end
 
 ANSI.Inline.Span = function(span)
+  if span.classes:includes 'mark' then
+    return font({'magentabg'}, inlines(span.content))
+  end
   return inlines(span.content)
 end
 
