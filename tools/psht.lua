@@ -142,12 +142,13 @@ local function ensure_string(s)
 end
 
 local function hcenter(content, cols)
-  content = ensure_string(content)
   cols = cols or term_cols()
-  return nest(
-    content,
-    (cols - layout.offset(content)) // 2
-  )
+  local strcontent = ensure_string(content)
+  local maxlen = 0
+  for line in strcontent:gsub('\027[[0-9;]*m', ''):gmatch('[^\n]*') do
+    maxlen = math.max(maxlen, #line)
+  end
+  return nest(content, (cols - maxlen) // 2)
 end
 
 --- Center vertically
