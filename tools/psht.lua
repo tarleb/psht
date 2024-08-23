@@ -177,6 +177,14 @@ local function vcenter(content, lines)
   return ' ' .. string.rep('\n', (lines - height) // 2) .. content
 end
 
+--- The current section
+local current_section = nil
+local function slide_header_row (cols)
+  cols = cols or term_cols()
+  local content = current_section or ' '
+  return font({'yellow', 'faint'}, layout.rblock(content, cols))
+end
+
 --- Supported writer extensions
 Extensions = {
   italic = false,
@@ -253,10 +261,12 @@ ANSI.Block.BlockQuote = function(el)
 end
 
 ANSI.Block.Header = function(h, opts)
-  local texts
   if h.level < opts.slide_level then
-    local centered = hcenter(inlines(h.content), opts.columns)
-    return font({'bold'}, vcenter(centered))
+    current_section = inlines(h.content)
+    local content = h.classes:includes 'big'
+      and figlet(current_section:render())
+      or hcenter(current_section, opts.columns)
+    return font({'bold'}, vcenter(content))
   elseif h.level <= 1 then
     return center(
       font({'bold', 'underline'}, inlines(h.content)),
@@ -280,12 +290,13 @@ ANSI.Block.Div = function(div, opts)
   if div.classes:includes 'note' then
     -- omit notes
     return empty
-  elseif div.classes:includes 'section' then
-    return concat{' ', cr, blocks(div.content), blankline}
   elseif div.classes:includes 'center' or div.classes:includes 'centered' then
     local content = blocks(div.content)
     local width = div.attributes.width or nil
     return {cr, hcenter(content, width) , blankline}
+  elseif div.classes:includes 'section'
+     and div.content[1].level == opts.slide_level then
+    return concat{slide_header_row(), cr, blocks(div.content), blankline}
   else
     return {cr, blocks(div.content, blankline), blankline}
   end
