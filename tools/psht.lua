@@ -130,6 +130,18 @@ local function term_cols()
   return tonumber(pandoc.pipe('tput', {'cols'}, ''))
 end
 
+--- Highlight code with the `skylighting` command line tool.
+local function skylighting (code, language)
+  local theme = os.getenv 'SKYLIGHTING_THEME'
+  return pandoc.pipe(
+    'skylighting',
+    List{
+      '--syntax', language or 'bash',
+    } .. (theme and {'--theme', theme} or {}),
+    tostring(code)
+  )
+end
+
 --- Display with figlet
 local function figlet(contents, cols, args)
   cols = cols or term_cols()
@@ -349,14 +361,17 @@ ANSI.Block.OrderedList = function(ol)
 end
 
 ANSI.Block.CodeBlock = function(cb)
-  return nest(concat { cr, cb.text, cr }, 4)
+  local syntax = cb.classes[1]
+  return syntax
+    and {cr, skylighting(cb.text, syntax), blankline}
+    or nest(concat { cr, cb.text, cr }, 4)
 end
 
 ANSI.Block.HorizontalRule = function(_, opts)
   local dinkus = opts.extensions:includes 'unicode'
     and '⁂'
     or '* * * * *'
-  return cblock(dinkus, opts.columns)
+  return hcenter(dinkus, opts.columns)
 end
 
 ANSI.Inline.Str = function(el)
