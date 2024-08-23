@@ -3,16 +3,20 @@
 -- scaffolding and custom writer extensions.
 PANDOC_VERSION:must_be_at_least '3.0'
 
+local pandoc = require 'pandoc'
+local List   = require 'pandoc.List'
+local layout = require 'pandoc.layout'
+local utils  = require 'pandoc.utils'
+
 local unpack = unpack or table.unpack
 local format = string.format
-local layout = pandoc.layout
 local empty, cr, concat, blankline, space =
   layout.empty, layout.cr, layout.concat, layout.blankline, layout.space
 local hang, nest, prefixed, real_length =
   layout.hang, layout.nest, layout.prefixed, layout.real_length
-local to_roman = pandoc.utils.to_roman_numeral
-local stringify = pandoc.utils.stringify
-local List = pandoc.List
+
+local to_roman  = utils.to_roman_numeral
+local stringify = utils.stringify
 
 --- Like pandoc.layout.cblock, but adjusted to work with escape sequences.
 -- Doesn't play nicely with other blocks though.
@@ -30,7 +34,9 @@ local center = function (doc, width)
   return table.concat(lines, '\n')
 end
 
-local footnotes
+--- List of footnotes in the document. This is populated by the writer
+--- for `Note` elements.
+local footnotes = pandoc.List{}
 
 local format_number = {
   Decimal      = function (n) return format("%d", n) end,
@@ -63,6 +69,8 @@ local unicode_superscript = {
   ['+'] = '⁺', ['-'] = '⁻', ['='] = '⁼', ['('] = '⁽', [')'] = '⁾',
 }
 
+--- Map from font effects to escape codes.
+-- The first item in the pair triggers the effect, the second cancels it.
 local font_effects = setmetatable(
   {
     -- leading zeros make things symmetric and simplify centering.
@@ -133,19 +141,14 @@ local function figlet(contents, cols, args)
   )
 end
 
-local function ensure_doc(d)
-  return pandoc.utils.type(d) == 'Doc' and d or layout.literal(d)
-end
-
-local function ensure_string(s)
-  return type(content) == 'string' and s or tostring(s)
+local function remove_formatting(str)
+  return tostring(str):gsub('\027%[[0-9;]*m', '')
 end
 
 local function hcenter(content, cols)
   cols = cols or term_cols()
-  local strcontent = ensure_string(content)
   local maxlen = 0
-  for line in strcontent:gsub('\027[[0-9;]*m', ''):gmatch('[^\n]*') do
+  for line in remove_formatting(content):gmatch('[^\n]*') do
     maxlen = math.max(maxlen, #line)
   end
   return nest(content, (cols - maxlen) // 2)
@@ -153,8 +156,8 @@ end
 
 --- Center vertically
 local function vcenter(content, lines)
-  lines = lines or term_lines()
-  content = ensure_string(content)
+  lines = lines or (term_lines() - 2)
+  content = tostring(content)
   local height = 1
   for _ in content:gmatch '\n' do
     height = height + 1
@@ -175,9 +178,9 @@ local ANSI = {
   Inline = {},
 }
 local inlines = function (inlns, opts)
-  local opts = opts or PANDOC_WRITER_OPTIONS
+  opts = opts or PANDOC_WRITER_OPTIONS
   local docs, cur = List{}, nil
-  for i, inline in ipairs(inlns) do
+  for _, inline in ipairs(inlns) do
     cur = ANSI.Inline[inline.t](inline, opts)
     if type(cur) == 'table' then
       docs:extend(cur)
@@ -190,14 +193,14 @@ local inlines = function (inlns, opts)
       error(msg:format(tostring(cur), inline.t))
     end
   end
-  return concat(docs, sep)
+  return concat(docs)
 end
 
 local blocks = function (blks, sep, opts)
-  local sep = sep or blankline
-  local opts = opts or PANDOC_WRITER_OPTIONS
+  sep = sep or blankline
+  opts = opts or PANDOC_WRITER_OPTIONS
   local docs, cur = List{}, nil
-  for i, block in ipairs(blks) do
+  for _, block in ipairs(blks) do
     cur = ANSI.Block[block.t](block, opts)
     if type(cur) == 'table' then
       docs:extend(cur)
