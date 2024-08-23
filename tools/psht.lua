@@ -303,10 +303,13 @@ ANSI.Block.Div = function(div, opts)
 end
 
 ANSI.Block.RawBlock = function(el)
+  if el.format == 'psht' then
+    return el.text
+  end
   return empty
 end
 
-ANSI.Block.Null = function(el)
+ANSI.Block.Null = function()
   return empty
 end
 
