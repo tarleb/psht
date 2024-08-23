@@ -265,14 +265,12 @@ ANSI.Block.Div = function(div, opts)
   if div.classes:includes 'note' then
     -- omit notes
     return empty
+  elseif div.classes:includes 'section' then
+    return concat{' ', cr, blocks(div.content), blankline}
   elseif div.classes:includes 'center' or div.classes:includes 'centered' then
-    local content = blocks(div.content, blankline)
-    local width = div.attributes.width or content:offset()
-    local centered = nest(
-      content:render(),
-      (opts.columns - width) // 2
-    )
-    return {cr, centered, blankline}
+    local content = blocks(div.content)
+    local width = div.attributes.width or nil
+    return {cr, hcenter(content, width) , blankline}
   else
     return {cr, blocks(div.content, blankline), blankline}
   end
