@@ -332,7 +332,7 @@ end
 
 ANSI.Block.BulletList = function(ul, opts)
   local bullet = opts.extensions:includes 'unicode' and '• ' or '- '
-  bullet = font('red', bullet)
+  bullet = font('green', bullet)
   local function render_item (item)
     return hang(blocks(item, blankline), 2, bullet):nest(2)
   end
