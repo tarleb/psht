@@ -6,7 +6,10 @@ PANDOC_VERSION:must_be_at_least '3.0'
 local pandoc = require 'pandoc'
 local List   = require 'pandoc.List'
 local layout = require 'pandoc.layout'
+local path   = require 'pandoc.path'
+local sys    = require 'pandoc.system'
 local utils  = require 'pandoc.utils'
+local io     = require 'io'
 
 local unpack = unpack or table.unpack
 local format = string.format
@@ -515,6 +518,7 @@ local write_title_slide = function (meta)
   end
   title = vcenter(font('magenta', title):render(), lines)
   local filename = ('_slides/000-%s'):format(titlestr)
+  sys.make_directory(path.directory(filename), true)
   local fh = io.open(filename, 'w')
   fh:write('#!/usr/bin/tail -n+2\n')
   fh:write(font('italic', author):render())
@@ -527,21 +531,23 @@ Writer = function (doc, opts)
   PANDOC_WRITER_OPTIONS = opts
   opts.slide_level = opts.slide_level or pandoc.structure.slide_level(doc)
   doc.blocks = pandoc.structure.make_sections(doc, opts)
+  local slides_directory = '_slides'
   local split_opts = {
-    path_template = '_slides/%n-%i.sh',
+    path_template = '%n-%i.sh',
     chunk_level = opts.slide_level,
   }
   local chunked = pandoc.structure.split_into_chunks(doc, split_opts)
   local files = List{}
-  for i, chunk in ipairs(chunked.chunks) do
-    local fh = io.open(chunk.path, 'w')
+  for _, chunk in ipairs(chunked.chunks) do
+    local filepath = path.join{slides_directory, chunk.path}
+    local fh = io.open(filepath, 'w')
     fh:write('#!/usr/bin/tail -n+2\n')
     fh:write(
       ANSI.Pandoc(pandoc.Pandoc(chunk.contents), opts)
       :render(opts.columns)
     )
     fh:close()
-    files:insert(chunk.path)
+    files:insert(filepath)
   end
 
   local title_slide_name = write_title_slide(doc.meta)
