@@ -53,7 +53,7 @@ local function is_tight_list(list)
   if not list_elements:includes(list.tag) then
     return false
   end
-  for i, item in ipairs(list.content) do
+  for _, item in ipairs(list.content) do
     if not (#item == 1 and item[1].tag == "Plain") and
        not (#item == 2 and item[1].tag == "Plain" and
             list_elements:includes(item[2].tag)) then
@@ -317,7 +317,7 @@ ANSI.Block.LineBlock = function(el)
   return concat(el.content:map(inlines), cr)
 end
 
-ANSI.Block.Table = function(el)
+ANSI.Block.Table = function()
   return 'table omitted'
 end
 
@@ -396,7 +396,7 @@ ANSI.Inline.Space = function ()
   return space
 end
 
-ANSI.Inline.SoftBreak = function(el, opts)
+ANSI.Inline.SoftBreak = function(_, opts)
   return opts.wrap_text == "wrap-preserve" and cr or space
 end
 
@@ -464,7 +464,7 @@ end
 
 ANSI.Inline.Math = function(el)
   local marker = el.mathtype == 'DisplayMath' and '$$' or '$'
-  return { marker, Inline.Code(el) }
+  return { marker, ANSI.Inline.Code(el) }
 end
 
 ANSI.Inline.Span = function(span)
