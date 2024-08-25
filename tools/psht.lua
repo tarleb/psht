@@ -517,7 +517,7 @@ local write_title_slide = function (meta)
     title = figlet(titlestr, cols, {'-f', 'big'})
   end
   title = vcenter(font('magenta', title):render(), lines)
-  local filename = ('_slides/000-%s'):format(titlestr)
+  local filename = ('_slides/000-%s.txt'):format(titlestr)
   sys.make_directory(path.directory(filename), true)
   local fh = io.open(filename, 'w')
   fh:write(author and font('italic', author):render() or '')
