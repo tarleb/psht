@@ -8,12 +8,6 @@ simple one-file-per-slide approach. It comes with tools that make
 the creation of presentations simple and convenient, including a
 custom pandoc writer to generate slides from Markdown.
 
-> **Warning**
->
-> This uses an experimental pandoc Lua module, the code for which
-> hasn't been merged yet. Using the custom writer would require
-> a custom pandoc build to be compiled locally.
-
 ## Why?
 
 The biggest feature of PShT is that it allows to combine
