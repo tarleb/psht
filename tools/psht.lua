@@ -507,7 +507,7 @@ end
 local write_title_slide = function (meta)
   local lines = meta.lines or term_lines() or 24
   local cols = meta.cols or 80
-  local author = inlines(meta.author)
+  local author = meta.author and inlines(meta.author) or ''
   local title = meta.title or ''
   local titlestr = stringify(title)
   if titlestr ~= '' then
