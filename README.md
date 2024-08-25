@@ -26,9 +26,9 @@ command while still showing a slide.
 
 ## How it works
 
-PShT is a shell *function* and *library* that provides a simple
-and standardized way to step through slides. Any program or script
-can serve as a slide, as long as it's in the `_slides`
+PShT is a *library of POSIX shell functions*. It provides a simple
+and standardized way to step through slides. Any text file or
+script can serve as a slide, as long as it's in the `_slides`
 subdirectory.
 
 The `_slides` folder in the source repository can serve as an
@@ -38,7 +38,6 @@ example.
 
 A list of current shortcomings that I'd like to improve:
 
-- [ ] Pure text slides shouldn't have to be in executable files.
 - [ ] Tables shouldn't be dropped.
 - [ ] Centering isn't working yet.
 - [ ] Support for columns is missing.

@@ -52,9 +52,15 @@ psht_current ()
 {
 
     printf '\033[?25l'           # hide the cursor
-    printf '\033[1;1H\033[0J'   # clear screen
-    find "$PSHT_SLIDES_DIR" -name "$PSHT_CURRENT*" -exec '{}' \; \
-      && printf '\033[999;1H'   # go to last line
+    printf '\033[1;1H\033[0J'    # clear the screen
+    # Either execute or just print the slide file
+    local filename=$(find "$PSHT_SLIDES_DIR" -name "$PSHT_CURRENT")
+    if [ -x "$filename" ]; then
+        "$filename"
+    else
+        cat "$filename"
+    fi
+    printf '\033[999;1H'         # go to the last line
     printf '\033[?25h'           # show the cursor
 }
 
