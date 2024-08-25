@@ -510,7 +510,7 @@ end
 local write_title_slide = function (meta)
   local lines = meta.lines or term_lines() or 24
   local cols = meta.cols or 80
-  local author = meta.author and inlines(meta.author) or ''
+  local author = meta.author and inlines(meta.author) or nil
   local title = meta.title or ''
   local titlestr = stringify(title)
   if titlestr ~= '' then
@@ -520,8 +520,7 @@ local write_title_slide = function (meta)
   local filename = ('_slides/000-%s'):format(titlestr)
   sys.make_directory(path.directory(filename), true)
   local fh = io.open(filename, 'w')
-  fh:write('#!/usr/bin/tail -n+2\n')
-  fh:write(font('italic', author):render())
+  fh:write(author and font('italic', author):render() or '')
   fh:write(title)
   fh:close()
   return filename
@@ -533,7 +532,7 @@ Writer = function (doc, opts)
   doc.blocks = pandoc.structure.make_sections(doc, opts)
   local slides_directory = '_slides'
   local split_opts = {
-    path_template = '%n-%i.sh',
+    path_template = '%n-%i.txt',
     chunk_level = opts.slide_level,
   }
   local chunked = pandoc.structure.split_into_chunks(doc, split_opts)
@@ -541,7 +540,6 @@ Writer = function (doc, opts)
   for _, chunk in ipairs(chunked.chunks) do
     local filepath = path.join{slides_directory, chunk.path}
     local fh = io.open(filepath, 'w')
-    fh:write('#!/usr/bin/tail -n+2\n')
     fh:write(
       ANSI.Pandoc(pandoc.Pandoc(chunk.contents), opts)
       :render(opts.columns)
@@ -552,11 +550,6 @@ Writer = function (doc, opts)
 
   local title_slide_name = write_title_slide(doc.meta)
   files:insert(1, title_slide_name)
-
-  -- make slides executable
-  files:map(function (fp)
-      os.execute(('chmod +x "%s"'):format(fp))
-  end)
 
   return 'The following slides were created:\n' ..
     table.concat(files, '\n')
